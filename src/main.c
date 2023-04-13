@@ -13,7 +13,9 @@
 #include <sys/socket.h>
 #include <sys/resource.h>
 #include <net/if.h>
+#include <time.h>
 #include "socketfilter.skeleton.h"
+#include "connect.skeleton.h"
 #include <signal.h>
 #include "common.h"
 static const char * ipproto_mapping[IPPROTO_MAX] = {
@@ -99,9 +101,9 @@ static void sig_handler(int sig){
     exiting = true;
 }
 
-int main(int argc, char *argv[]){
+static int socket_filter(void){
     struct ring_buffer *rb = NULL;
-	struct socketfilter_bpf *skeleton;
+    struct socketfilter_bpf *skeleton;
     int err, prog_fd, sock;
 
     signal(SIGINT, sig_handler);
@@ -122,7 +124,7 @@ int main(int argc, char *argv[]){
         fprintf(stderr, "Failed to create ringbuffer\n");
         goto cleanup;
     }
-    sock = open_raw_sock("lo");
+    sock = open_raw_sock("enp89s0");
     if (sock < 0) {
         err = -2;
         fprintf(stderr, "Failed to open raw socket\n");
@@ -146,10 +148,76 @@ int main(int argc, char *argv[]){
         }
         sleep(1);
     }
-	return 0;
+    return 0;
 
-cleanup:
+    cleanup:
     ring_buffer__free(rb);
     socketfilter_bpf__destroy(skeleton);
     return -err;
+}
+static volatile sig_atomic_t stop;
+
+static void sig_int(int signo)
+{
+    stop = 1;
+}
+static int connect_event(void *ctx, void *data, size_t data_size){
+    const struct connect_event *e = data;
+    struct tm *tm;
+    char ts[32];
+    time_t t;
+    time(&t);
+    tm = localtime(&t);
+    strftime(ts, sizeof(ts), "%h:%M:%S", tm);
+    printf("pid[%d], name[%s] connect to [%s:%d]\n", e->caller_pid, e->comm,
+           inet_ntoa((struct in_addr){e->daddr}),
+           ntohs(e->port16[1]));
+    return 0;
+}
+static void connect_probe(void){
+    struct connect_bpf *skeleton = NULL;
+    struct ring_buffer *rb = NULL;
+    int err;
+    libbpf_set_print(libbpf_print_fn);
+    skeleton = connect_bpf__open_and_load();
+    if(!skeleton){
+        fprintf(stderr, "Failed to open BPF skeleton\n");
+        return;
+    }
+    err = connect_bpf__attach(skeleton);
+    if (err) {
+        fprintf(stderr, "Failed to attach BPF skeleton\n");
+        goto cleanup;
+    }
+    signal(SIGINT, sig_handler);
+    signal(SIGTERM, sig_handler);
+
+    rb = ring_buffer__new(bpf_map__fd(skeleton->maps.rb_connect),
+                          connect_event,NULL, NULL);
+    if(!rb){
+        err = -1;
+        fprintf(stderr, "Failed to create ring buffer\n");
+        goto cleanup;
+    }
+    while (!exiting){
+        err = ring_buffer__poll(rb, 100);
+        if(err == -EINTR){
+            err = 0;
+            break;
+        }
+        if(err < 0){
+            printf("Error polling perf buffer: %d\n", err);
+            break;
+        }
+    }
+
+cleanup:
+    ring_buffer__free(rb);
+    connect_bpf__destroy(skeleton);
+    return;
+}
+
+int main(int argc, char *argv[]){
+    //connect_probe();
+    socket_filter();
 }
