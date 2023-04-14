@@ -16,6 +16,7 @@
 #include <time.h>
 #include "socketfilter.skeleton.h"
 #include "connect.skeleton.h"
+#include "sockops.skeleton.h"
 #include <signal.h>
 #include "common.h"
 static const char * ipproto_mapping[IPPROTO_MAX] = {
@@ -217,7 +218,31 @@ cleanup:
     return;
 }
 
+void sock_ops(){
+    struct sockops_bpf *skeleton = NULL;
+    int err;
+    signal(SIGINT, sig_handler);
+    signal(SIGTERM, sig_handler);
+    skeleton = sockops_bpf__open_and_load();
+    if(!skeleton){
+        fprintf(stderr, "Failed to open BPF skeleton\n");
+        return;
+    }
+    err = sockops_bpf__attach(skeleton);
+    if (err) {
+        fprintf(stderr, "Failed to attach BPF skeleton\n");
+        goto cleanup;
+    }
+    while (!exiting){
+        sleep(1);
+    }
+cleanup:
+    sockops_bpf__destroy(skeleton);
+    return;
+}
+
 int main(int argc, char *argv[]){
     //connect_probe();
-    socket_filter();
+    //socket_filter();
+    sock_ops();
 }
