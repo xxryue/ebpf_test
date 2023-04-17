@@ -7,7 +7,9 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
 #include <bpf/bpf_core_read.h>
+#include <bpf/bpf_endian.h>
 #include <string.h>
+#include <errno.h>
 #include "common.h"
 
 char LICENSE[] SEC("license") = "Dual BSD/GPL";
@@ -63,3 +65,4 @@ int BPF_KPROBE_SYSCALL(connect_entry, int fd,  struct sockaddr *addr,int addrlen
     bpf_ringbuf_submit(e, 0);
     return 0;
 }
+

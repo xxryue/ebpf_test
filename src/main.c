@@ -15,6 +15,7 @@
 #include <net/if.h>
 #include <time.h>
 #include "socketfilter.skeleton.h"
+#include "lsm_connect.skeleton.h"
 #include "connect.skeleton.h"
 #include "sockops.skeleton.h"
 #include <signal.h>
@@ -175,6 +176,41 @@ static int connect_event(void *ctx, void *data, size_t data_size){
            ntohs(e->port16[1]));
     return 0;
 }
+static void lsm_socket_connect(void){
+    struct lsm_connect_bpf *skeleton = NULL;
+    struct ring_buffer *rb = NULL;
+    int err;
+    libbpf_set_print(libbpf_print_fn);
+    skeleton = lsm_connect_bpf__open_and_load();
+    if(!skeleton){
+        fprintf(stderr, "Failed to open BPF skeleton\n");
+        return;
+    }
+    err = lsm_connect_bpf__attach(skeleton);
+    if (err) {
+        fprintf(stderr, "Failed to attach BPF skeleton\n");
+        goto cleanup;
+    }
+    signal(SIGINT, sig_handler);
+    signal(SIGTERM, sig_handler);
+
+    rb = ring_buffer__new(bpf_map__fd(skeleton->maps.rb_lsm_connect),
+                          connect_event, NULL, NULL);
+    while (!exiting){
+        err = ring_buffer__poll(rb, 100);
+        if(err == -EINTR){
+            err = 0;
+            break;
+        }
+        if(err < 0){
+            printf("Error polling perf buffer: %d\n", err);
+            break;
+        }
+    }
+cleanup:
+    ring_buffer__free(rb);
+    lsm_connect_bpf__destroy(skeleton);
+}
 static void connect_probe(void){
     struct connect_bpf *skeleton = NULL;
     struct ring_buffer *rb = NULL;
@@ -244,5 +280,6 @@ cleanup:
 int main(int argc, char *argv[]){
     //connect_probe();
     //socket_filter();
-    sock_ops();
+    //sock_ops();
+    lsm_socket_connect();
 }
