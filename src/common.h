@@ -33,6 +33,7 @@ struct connect_event{
     __u32 pkt_type;
     __u32 ifindex;
     __u32 caller_pid;
+    __u8 rejected;
     char comm[TASK_COMM_LEN];
 };
 

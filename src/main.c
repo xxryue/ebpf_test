@@ -48,7 +48,7 @@ static const char * ipproto_mapping[IPPROTO_MAX] = {
         [IPPROTO_RAW] = "RAW"
 };
 
-static int libbpf_print_fn(enum libbpf_print_level, const char *format, va_list args){
+static int libbpf_print_fn(enum libbpf_print_level level, const char *format, va_list args){
     return vfprintf(stderr, format, args);
 }
 
@@ -171,9 +171,11 @@ static int connect_event(void *ctx, void *data, size_t data_size){
     time(&t);
     tm = localtime(&t);
     strftime(ts, sizeof(ts), "%h:%M:%S", tm);
-    printf("pid[%d], name[%s] connect to [%s:%d]\n", e->caller_pid, e->comm,
-           inet_ntoa((struct in_addr){e->daddr}),
-           ntohs(e->port16[1]));
+    if(e->rejected){
+        printf("pid[%d], name[%s] connect to [%s:%d] rejected\n", e->caller_pid, e->comm,
+               inet_ntoa((struct in_addr){e->daddr}),
+               ntohs(e->port16[1]));
+    }
     return 0;
 }
 static void lsm_socket_connect(void){
