@@ -53,13 +53,19 @@ int BPF_PROG(lsm_socket_connect, struct socket* sock, struct sockaddr *addr, int
         dest = temp.sin_port;
         //bpf_printk("%s[%d] [%d:%d]", comm, caller_pid, e->daddr, e->port16[1]);
     }
-    bpf_ringbuf_submit(e, 0);
     dest = __bpf_ntohs(dest);
+    if(dest == 80){
+        e->rejected = true;
+    }
+    bpf_ringbuf_submit(e, 0);
+
 
     if(dest == 80){
+#if 0
         bpf_printk("%s[%d] [%d.%d.%d.%d:%d] rejected", comm, caller_pid,
                (daddr>>0)&0xff,(daddr>>8)&0xff,(daddr>>16)&0xff,(daddr>>24)&0xff,
                dest);
+#endif
         return -EPERM;
     }
     return 0;
