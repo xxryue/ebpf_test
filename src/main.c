@@ -48,7 +48,7 @@ static const char * ipproto_mapping[IPPROTO_MAX] = {
         [IPPROTO_RAW] = "RAW"
 };
 
-static int libbpf_print_fn(enum libbpf_print_level, const char *format, va_list args){
+static int libbpf_print_fn(enum libbpf_print_level level, const char *format, va_list args){
     return vfprintf(stderr, format, args);
 }
 
@@ -191,6 +191,7 @@ static void lsm_socket_connect(void){
         fprintf(stderr, "Failed to attach BPF skeleton\n");
         goto cleanup;
     }
+
     signal(SIGINT, sig_handler);
     signal(SIGTERM, sig_handler);
 
