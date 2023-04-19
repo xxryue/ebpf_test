@@ -26,24 +26,29 @@ int BPF_PROG(lsm_socket_connect, struct socket* sock, struct sockaddr *addr, int
     __u32 caller_pid = bpf_get_current_pid_tgid() >> 32;
     bpf_get_current_comm(&comm, sizeof(comm));
     __u16 dest = 0;
+    __u16 source = 0;
     __u32 daddr;
+    __u32 saddr = 0;
     e = bpf_ringbuf_reserve(&rb_lsm_connect, sizeof(*e), 0);
     if(!e){
         return 0;
     }
+
     e->caller_pid = caller_pid;
     memcpy(e->comm, comm, TASK_COMM_LEN);
     e->daddr = 0;
     e->port16[1] = 0;
-
     if(addr){
         bpf_core_read(&temp, sizeof(struct sockaddr_in), addr);
         e->daddr = temp.sin_addr.s_addr;
         e->port16[1] = temp.sin_port;
+        e->saddr = saddr;
+        e->port16[0] = source;
         daddr = temp.sin_addr.s_addr;
         dest = temp.sin_port;
         //bpf_printk("%s[%d] [%d:%d]", comm, caller_pid, e->daddr, e->port16[1]);
     }
+
     dest = __bpf_ntohs(dest);
     if(dest == 80){
         e->rejected = true;

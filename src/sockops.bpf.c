@@ -71,19 +71,23 @@ SEC("sk_msg")
 int sk_msg_entry(struct sk_msg_md *msg){
     // todo [pid->tuple]
     struct sock_key key = {0};
+    //char comm[32] = {0};
     int caller_pid = bpf_get_current_pid_tgid() >> 32;
     key.saddr = __bpf_ntohl(msg->remote_ip4);
     key.daddr = __bpf_ntohl(msg->local_ip4);
     key.family = msg->family;
     key.source = msg->local_port;
     key.dest = __bpf_ntohs(FORCE_READ(msg->remote_port));
-
+    //bpf_get_current_comm(comm, sizeof (comm));
+    bpf_printk("pid[%d]", caller_pid);
+#if 0
     bpf_printk("pid[%d],[%d.%d.%d.%d:%d->%d.%d.%d.%d:%d]\n",caller_pid,
                (key.saddr>>24)&0xFF,(key.saddr>>16)&0xFF,
                (key.saddr>>8)&0xFF,(key.saddr>>0)&0xFF,key.source,
                (key.daddr>>24)&0xFF,(key.daddr>>16)&0xFF,
                (key.daddr>>8)&0xFF,(key.daddr>>0)&0xFF,key.dest);
-    return SK_DROP;
+#endif
+    return SK_PASS;
 }
 
 
