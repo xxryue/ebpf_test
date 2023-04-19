@@ -171,11 +171,11 @@ static int connect_event(void *ctx, void *data, size_t data_size){
     time(&t);
     tm = localtime(&t);
     strftime(ts, sizeof(ts), "%h:%M:%S", tm);
-    if(e->rejected){
-        printf("pid[%d], name[%s] connect to [%s:%d] rejected\n", e->caller_pid, e->comm,
-               inet_ntoa((struct in_addr){e->daddr}),
-               ntohs(e->port16[1]));
-    }
+    printf("saddr[%u],daddr[%u]\n",e->saddr, e->daddr);
+    const char *sstr = inet_ntoa((struct in_addr){e->saddr});
+    const char *dstr = inet_ntoa((struct in_addr){e->daddr});
+    printf("pid[%d], name[%s] [%s:%d--->%s:%d]\n", e->caller_pid, e->comm,sstr,ntohs(e->port16[0]),dstr,ntohs(e->port16[1]));
+
     return 0;
 }
 static void lsm_socket_connect(void){
