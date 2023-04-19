@@ -17,7 +17,16 @@ struct {
     __uint(type, BPF_MAP_TYPE_RINGBUF);
     __uint(max_entries, 256 * 1024);
 }rb_lsm_connect SEC(".maps");
+//(*inet_conn_established)(struct sock *sk, struct sk_buff *skb)
+SEC("lsm/inet_conn_established")
+void BPF_PROG(lsm_inet_conn_established, struct sock *sk, struct sk_buff *skb){
+    bpf_printk("hello\n");
+    struct iphdr ip;
 
+    bpf_core_read(&ip, sizeof(ip), skb->data + sizeof(struct ethhdr));
+    bpf_printk("ip[%d]", ip.saddr);
+}
+#if 1
 SEC("lsm/socket_connect")
 int BPF_PROG(lsm_socket_connect, struct socket* sock, struct sockaddr *addr, int addrlen){
     struct connect_event *e = NULL;
@@ -66,3 +75,4 @@ int BPF_PROG(lsm_socket_connect, struct socket* sock, struct sockaddr *addr, int
     }
     return 0;
 }
+#endif

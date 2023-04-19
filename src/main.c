@@ -193,6 +193,7 @@ static void lsm_socket_connect(void){
         fprintf(stderr, "Failed to attach BPF skeleton\n");
         goto cleanup;
     }
+
     signal(SIGINT, sig_handler);
     signal(SIGTERM, sig_handler);
 
