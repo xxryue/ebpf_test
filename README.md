@@ -1,5 +1,9 @@
 # ebpf program by libbpf
 
+# prepare
+
+sudo apt install gcc-multilib zlib1g-dev libpcap-dev llvm clang libbfd-dev libelf-dev
+
 # testing
 
 ```
