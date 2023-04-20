@@ -18,40 +18,29 @@ char LICENSE[] SEC("license") = "Dual BSD/GPL";
 
 SEC("wg_egress")
 int egress_wg(struct __sk_buff *skb){
-    void *data = (void*)(long)skb->data;
-    void *data_end = (void*)(long)skb->data_end;
-    int offset = sizeof(struct ethhdr) + sizeof(struct iphdr) +
-            sizeof(struct udphdr);
-    struct bpf_sock_tuple tuple = {};
-    struct bpf_sock *sk = NULL;
-    struct ethhdr *eth = data;
-    if(eth->h_proto != __constant_htons(ETH_P_IP)){
+    struct iphdr ip;
+    struct udphdr udp;
+    int ip_offset, udp_offset;
+    if(skb->protocol != __constant_htonl(ETH_P_IP)){
+        return TC_ACT_OK;
+    }
+    ip_offset = ETH_HLEN;
+    // read ip header
+    if(bpf_skb_load_bytes(skb, ip_offset, &ip, sizeof(struct iphdr)) < 0){
+        return TC_ACT_OK;
+    }
+    if(ip.protocol != IPPROTO_UDP){
+        return TC_ACT_OK;
+    }
+    udp_offset = ip_offset + (ip.ihl << 2);
+    // read udp header
+    if(bpf_skb_load_bytes(skb, udp_offset, &udp, sizeof(struct udphdr)) < 0){
         return TC_ACT_OK;
     }
 
-    struct iphdr *ip = data + sizeof(struct ethhdr);
-    if(ip->protocol != IPPROTO_UDP){
-        return TC_ACT_OK;
-    }
-    struct udphdr *udp = data + sizeof(struct ethhdr) + sizeof(struct iphdr);
+    bpf_skb_adjust_room(skb, 4*5, BPF_ADJ_ROOM_NET, BPF_F_ADJ_ROOM_NO_CSUM_RESET );
 
-    __be16 target_port = __constant_htons(9090);
-    if(udp->dest != target_port){
-        return TC_ACT_OK;
-    }
-    __be16 length = __constant_htons(1);
-    if(udp->len < length){
-        return TC_ACT_OK;
-    }
-    int left = (long)(data + offset) - (long)data_end;
-    bpf_printk("left[%d]", left);
-    if(left > 0){
-        return TC_ACT_UNSPEC;
-    }
-    sk = bpf_sk_lookup_udp(skb, &tuple, sizeof(tuple.ipv4), 0, 0);
-    char hello[24] = "Hello, World! Hello, TC!";
-    offset += __be16_to_cpu(udp->len) + offset;
-    bpf_skb_store_bytes(skb, offset, hello, sizeof(hello), BPF_F_RECOMPUTE_CSUM);
+
     return TC_ACT_OK;
 }
 
