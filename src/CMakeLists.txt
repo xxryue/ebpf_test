@@ -41,3 +41,4 @@ foreach(app ${ebpf_apps})
 endforeach()
 
 
+add_subdirectory(udp_app)
