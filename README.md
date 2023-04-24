@@ -18,4 +18,10 @@ sudo ./ebpf_test
 
 # Enable LSM for Ubuntu or Centos 8
 
-add "lsm=lockdown,capability,bpf" to "RUB_CMDLINE_LINUX" in "/etc/default/grub"
+add "lsm=lockdown,capability,bpf" to "GRUB_CMDLINE_LINUX" in "/etc/default/grub"
+
+
+# for Qt on fedora
+```
+sudo dnf install libglvnd-devel -y
+```
